@@ -1,6 +1,6 @@
 {
   "name": "@yigitahmetsahin/captcha-solver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered captcha solver using image preprocessing and OpenAI vision models",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
