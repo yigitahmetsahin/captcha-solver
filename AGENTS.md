@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-An AI-powered captcha solver library using image preprocessing and OpenAI vision models. Supports majority voting across multiple attempts for high accuracy. Published to npm as `captcha-solver`.
+An AI-powered captcha solver library using image preprocessing and OpenAI vision models. Supports majority voting across multiple attempts for high accuracy. Published to npm as `@yigitahmetsahin/captcha-solver`.
 
 ## Setup Commands
 

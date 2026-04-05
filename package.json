@@ -1,5 +1,5 @@
 {
-  "name": "captcha-solver",
+  "name": "@yigitahmetsahin/captcha-solver",
   "version": "1.0.0",
   "description": "AI-powered captcha solver using image preprocessing and OpenAI vision models",
   "main": "dist/index.js",

@@ -1,4 +1,4 @@
-# captcha-solver
+# @yigitahmetsahin/captcha-solver
 
 AI-powered captcha solver using image preprocessing and OpenAI vision models with majority voting.
 
@@ -23,14 +23,14 @@ AI-powered captcha solver using image preprocessing and OpenAI vision models wit
 ## Installation
 
 ```bash
-npm install captcha-solver
+npm install @yigitahmetsahin/captcha-solver
 ```
 
 ## Quick Start
 
 ```typescript
 import 'dotenv/config';
-import { solveCaptchaImage } from 'captcha-solver';
+import { solveCaptchaImage } from '@yigitahmetsahin/captcha-solver';
 
 const answer = await solveCaptchaImage('./captcha.png', {
   numAttempts: 5,
