@@ -1,0 +1,22 @@
+{
+  "name": "captcha-solver",
+  "version": "1.0.0",
+  "description": "AI-powered captcha solver using image preprocessing and OpenAI o3",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "solve": "tsx run.ts",
+    "benchmark": "tsx run.ts --benchmark 20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "openai": "^4.77.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
