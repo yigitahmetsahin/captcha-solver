@@ -1,0 +1,23 @@
+# Source files (we only ship dist)
+src/
+
+# Config files
+tsconfig.json
+tsconfig.check.json
+tsup.config.ts
+vitest.config.ts
+.gitignore
+
+# Test files
+**/*.test.ts
+coverage/
+
+# Runner
+run.ts
+
+# IDE
+.idea/
+.vscode/
+
+# GitHub
+.github/

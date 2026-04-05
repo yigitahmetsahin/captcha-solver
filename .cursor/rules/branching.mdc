@@ -1,0 +1,30 @@
+---
+description: Critical branching policy - ALWAYS start new branches from main
+alwaysApply: true
+---
+
+# Branching Policy (CRITICAL)
+
+**ALWAYS start a NEW branch from `main` for EVERY change.**
+
+Before starting ANY work:
+
+```bash
+git checkout main && git pull && git checkout -b <new-branch>
+```
+
+## Rules
+
+- NEVER reuse or add commits to an existing branch
+- NEVER continue working on someone else's branch
+- Each task/fix/feature gets its own fresh branch
+- If on an existing branch that isn't `main`, switch to `main` first
+
+## Branch Naming
+
+- Features: `feat/<short-description>`
+- Bug fixes: `fix/<short-description>`
+- Refactors: `refactor/<short-description>`
+- Docs: `docs/<short-description>`
+
+See @AGENTS.md for full branching policy details.

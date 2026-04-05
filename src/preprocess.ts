@@ -1,6 +1,6 @@
-import fs from "fs";
-import { execSync } from "child_process";
-import path from "path";
+import fs from 'fs';
+import { execSync } from 'child_process';
+import path from 'path';
 
 // Inline Python script for image preprocessing
 // Uses PIL which produces optimal results for captcha OCR
@@ -42,13 +42,13 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
   const absPath = path.resolve(imagePath);
 
   // Write the Python script to a temp file
-  const scriptPath = "/tmp/_captcha_preprocess.py";
+  const scriptPath = '/tmp/_captcha_preprocess.py';
   fs.writeFileSync(scriptPath, PYTHON_SCRIPT);
 
   // Execute Python and capture base64 output
   const result = execSync(`python3 "${scriptPath}" "${absPath}"`, {
     maxBuffer: 10 * 1024 * 1024, // 10MB
-    encoding: "utf-8",
+    encoding: 'utf-8',
   });
 
   return result.trim();
@@ -59,5 +59,5 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
  */
 export function imageToBase64(imagePath: string): string {
   const buffer = fs.readFileSync(imagePath);
-  return buffer.toString("base64");
+  return buffer.toString('base64');
 }
