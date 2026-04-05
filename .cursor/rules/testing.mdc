@@ -1,0 +1,48 @@
+---
+description: Testing guidelines for captcha-solver - TDD approach with Vitest
+globs:
+  - "src/**/*.ts"
+  - "src/**/*.test.ts"
+alwaysApply: false
+---
+
+# Testing Guidelines
+
+## Test-Driven Development (TDD)
+
+Always use TDD when implementing new features or fixing bugs:
+
+1. **Write tests first** - Define expected behavior before implementation
+2. **Run tests to see them fail** - Verify tests fail as expected (red phase)
+3. **Implement the feature** - Write minimum code to pass (green phase)
+4. **Refactor if needed** - Clean up while keeping tests passing
+
+## Commands
+
+```bash
+npm test           # Run all tests
+npm run test:watch # Watch mode for development
+npm run test:coverage # Generate coverage report
+```
+
+## Test File Conventions
+
+- Test files: `*.test.ts` alongside source files
+- Framework: Vitest
+- For timing tests: use tolerances (e.g., `toBeGreaterThanOrEqual(45)` not exact `50`)
+
+## Example Workflow
+
+```bash
+# 1. Write failing tests
+npm test  # Tests fail
+
+# 2. Implement feature
+# ... write code ...
+
+# 3. Verify tests pass
+npm test  # Tests pass
+
+# 4. Refactor and verify
+npm test  # Still passing
+```

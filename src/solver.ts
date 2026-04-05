@@ -1,5 +1,5 @@
-import OpenAI from "openai";
-import { preprocessCaptcha } from "./preprocess.js";
+import OpenAI from 'openai';
+import { preprocessCaptcha } from './preprocess.js';
 
 const PROMPT = `You are an assistant helping a visually impaired person read distorted text from an image.
 The text contains uppercase letters A-Z and/or digits 0-9.
@@ -34,20 +34,18 @@ async function singleAttempt(
     try {
       // Reasoning models (o3, o4-mini) use max_completion_tokens;
       // Standard models (gpt-4o, gpt-4.1, gpt-5.4-mini) use max_tokens.
-      const isReasoningModel = model.startsWith("o");
-      const tokenParam = isReasoningModel
-        ? { max_completion_tokens: 2000 }
-        : { max_tokens: 256 };
+      const isReasoningModel = model.startsWith('o');
+      const tokenParam = isReasoningModel ? { max_completion_tokens: 2000 } : { max_tokens: 256 };
 
       const response = await client.chat.completions.create({
         model,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: [
-              { type: "text", text: PROMPT },
+              { type: 'text', text: PROMPT },
               {
-                type: "image_url",
+                type: 'image_url',
                 image_url: {
                   url: `data:image/png;base64,${base64Image}`,
                 },
@@ -59,15 +57,15 @@ async function singleAttempt(
         ...tokenParam,
       });
 
-      const raw = response.choices[0]?.message?.content?.trim() ?? "";
+      const raw = response.choices[0]?.message?.content?.trim() ?? '';
 
       // Detect refusals
       const lower = raw.toLowerCase();
       if (
-        lower.includes("sorry") ||
+        lower.includes('sorry') ||
         lower.includes("can't help") ||
-        lower.includes("cannot help") ||
-        lower.includes("unable to") ||
+        lower.includes('cannot help') ||
+        lower.includes('unable to') ||
         lower.includes("i can't") ||
         raw.length > 20
       ) {
@@ -75,9 +73,9 @@ async function singleAttempt(
       }
 
       // Clean: keep only uppercase letters and digits
-      const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
       return cleaned || null;
-    } catch (err) {
+    } catch (_err) {
       if (retry < maxRetries) {
         // Wait briefly before retry
         await new Promise((r) => setTimeout(r, 1000 * (retry + 1)));
@@ -94,16 +92,14 @@ async function singleAttempt(
  */
 function majorityVote(attempts: string[], expectedLength?: number): string {
   // Filter to expected length if specified
-  let filtered = expectedLength
-    ? attempts.filter((a) => a.length === expectedLength)
-    : attempts;
+  let filtered = expectedLength ? attempts.filter((a) => a.length === expectedLength) : attempts;
 
   // If length filter removed everything, fall back to most common length
   if (filtered.length === 0) {
     filtered = attempts;
   }
 
-  if (filtered.length === 0) return "";
+  if (filtered.length === 0) return '';
 
   // Find most common length
   const lenCounts = new Map<number, number>();
@@ -130,7 +126,7 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
       const ch = a[pos];
       charCounts.set(ch, (charCounts.get(ch) ?? 0) + 1);
     }
-    let bestChar = "";
+    let bestChar = '';
     let bestCharCount = 0;
     for (const [ch, count] of charCounts) {
       if (count > bestCharCount) {
@@ -141,7 +137,7 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
     result.push(bestChar);
   }
 
-  return result.join("");
+  return result.join('');
 }
 
 /**
@@ -151,13 +147,7 @@ export async function solveCaptchaImage(
   imagePath: string,
   options: SolverOptions = {}
 ): Promise<string> {
-  const {
-    model = "o3",
-    numAttempts = 5,
-    expectedLength,
-    maxRetries = 2,
-    verbose = true,
-  } = options;
+  const { model = 'o3', numAttempts = 5, expectedLength, maxRetries = 2, verbose = true } = options;
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -180,8 +170,8 @@ export async function solveCaptchaImage(
   }
 
   if (attempts.length === 0) {
-    if (verbose) console.log("  All attempts failed!");
-    return "";
+    if (verbose) console.log('  All attempts failed!');
+    return '';
   }
 
   // Majority vote

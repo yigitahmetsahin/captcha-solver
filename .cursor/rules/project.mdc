@@ -1,0 +1,36 @@
+---
+description: Captcha-solver project rules - AI-powered captcha solving library
+alwaysApply: true
+---
+
+# Captcha-solver Project Rules
+
+This is an AI-powered captcha solver library using image preprocessing and OpenAI vision models. See @AGENTS.md for comprehensive instructions.
+
+## Quick Reference
+
+### Before Any Code Changes
+
+1. Read @AGENTS.md for full project context
+2. Start a new branch from `main` (see branching.mdc)
+3. Run `npm test` to verify baseline
+
+### Before Committing
+
+```bash
+npm run lint   # Format, lint, and type-check
+npm test       # All tests must pass
+```
+
+### Key Conventions
+
+- Use TDD: write tests first, then implement
+- Keep functions focused on single responsibility
+- Prefer async/await over raw promises
+
+### Documentation Updates
+
+When making code changes, update in the SAME PR:
+
+- Unit tests in `src/*.test.ts`
+- README.md if API changes
