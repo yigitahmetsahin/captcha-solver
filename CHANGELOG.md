@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.2.0...v1.2.1) (2026-04-06)
+
+
+### Performance
+
+* run voting attempts in parallel ([2ac900f](https://github.com/yigitahmetsahin/captcha-solver/commit/2ac900fe2cfec33443c950ffad81602b29db67a6))
+
 ## [1.2.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.1.0...v1.2.0) (2026-04-06)
 
 
