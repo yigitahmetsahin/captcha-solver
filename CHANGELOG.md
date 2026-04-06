@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v2.0.1...v3.0.0) (2026-04-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* confusion groups disabled by default, crop mode changed from fixed percentages to auto-detect. Use { confusionGroups: LEGACY_CONFUSION_GROUPS, preprocess: { crop: 'legacy' } } to restore old behavior.
+
+### Features
+
+* adaptive preprocessing and optional confusion groups ([8a1e597](https://github.com/yigitahmetsahin/captcha-solver/commit/8a1e597cd798ba7c5c2ec362eaef7813ede1db7d))
+* dual-image solver with case-aware prompt (0% → 100% on external captchas) ([c2fa2d4](https://github.com/yigitahmetsahin/captcha-solver/commit/c2fa2d426fe4a6485359ed1a531daa6228d53902))
+
+
+### Bug Fixes
+
+* regenerate package-lock.json with resolved emnapi deps ([b50ef8e](https://github.com/yigitahmetsahin/captcha-solver/commit/b50ef8e9aee3e3cf8c76410aa83d53f03ce07b34))
+
 ## [2.0.1](https://github.com/yigitahmetsahin/captcha-solver/compare/v2.0.0...v2.0.1) (2026-04-06)
 
 
