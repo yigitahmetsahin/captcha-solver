@@ -3,7 +3,7 @@ import { preprocessCaptcha } from './preprocess.js';
 
 const PROMPT = `You are an assistant helping a visually impaired person read distorted text from an image.
 The text contains uppercase letters A-Z and/or digits 0-9.
-A thin vertical stroke is likely the digit 1, not the letter I.
+A thin vertical stroke is the digit 1. Never read it as the letter I or L.
 A round closed shape is the letter O, not the letter D.
 Output ONLY the exact characters you read, nothing else.`;
 
@@ -88,7 +88,32 @@ async function singleAttempt(
 }
 
 /**
+ * Confusion groups: characters the model commonly misreads as each other.
+ * Each group maps to its canonical (most likely correct) character.
+ */
+const CONFUSION_GROUPS: Record<string, string> = {
+  // Thin vertical strokes → digit 1
+  '1': '1',
+  I: '1',
+  L: '1',
+  // Round shapes → letter O
+  O: 'O',
+  D: 'O',
+  '0': 'O',
+  // Similar curves
+  S: 'S',
+  '5': 'S',
+  // Straight edges
+  Z: 'Z',
+  '2': 'Z',
+};
+
+/**
  * Character-level majority vote across multiple attempts.
+ *
+ * Uses confusion-aware voting: characters that the model commonly
+ * confuses (e.g. 1/I/L, O/D/0) are grouped together during counting.
+ * The canonical character for the winning group is used.
  */
 function majorityVote(attempts: string[], expectedLength?: number): string {
   // Filter to expected length if specified
@@ -118,23 +143,34 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
   const sameLenAttempts = filtered.filter((a) => a.length === bestLen);
   if (sameLenAttempts.length === 0) return filtered[0];
 
-  // Vote per character position
+  // Vote per character position with confusion-aware grouping
   const result: string[] = [];
   for (let pos = 0; pos < bestLen; pos++) {
+    // Count raw characters
     const charCounts = new Map<string, number>();
     for (const a of sameLenAttempts) {
       const ch = a[pos];
       charCounts.set(ch, (charCounts.get(ch) ?? 0) + 1);
     }
-    let bestChar = '';
-    let bestCharCount = 0;
+
+    // Group by canonical form and sum counts
+    const groupCounts = new Map<string, number>();
     for (const [ch, count] of charCounts) {
-      if (count > bestCharCount) {
-        bestChar = ch;
-        bestCharCount = count;
+      const canonical = CONFUSION_GROUPS[ch] ?? ch;
+      groupCounts.set(canonical, (groupCounts.get(canonical) ?? 0) + count);
+    }
+
+    // Pick the group with the highest combined count
+    let bestGroup = '';
+    let bestGroupCount = 0;
+    for (const [canonical, count] of groupCounts) {
+      if (count > bestGroupCount) {
+        bestGroup = canonical;
+        bestGroupCount = count;
       }
     }
-    result.push(bestChar);
+
+    result.push(bestGroup);
   }
 
   return result.join('');

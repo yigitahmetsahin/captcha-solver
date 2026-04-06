@@ -9,7 +9,7 @@ AI-powered captcha solver using image preprocessing and OpenAI vision models wit
 ## Features
 
 - **AI Vision OCR** - Uses OpenAI vision models (o3, gpt-4o, etc.) to read distorted captcha text
-- **Image Preprocessing** - PIL-based pipeline: grayscale, blur, upscale, contrast/sharpness enhancement, cropping
+- **Image Preprocessing** - Sharp/libvips pipeline: grayscale, blur, upscale, contrast/sharpness enhancement, cropping
 - **Majority Voting** - Runs multiple attempts and uses character-level majority voting for accuracy
 - **Configurable** - Adjustable model, attempt count, expected length, and verbosity
 - **TypeScript** - Full type safety with strict mode
@@ -17,7 +17,6 @@ AI-powered captcha solver using image preprocessing and OpenAI vision models wit
 ## Prerequisites
 
 - Node.js >= 18
-- Python 3 with PIL/Pillow (`pip install Pillow`)
 - OpenAI API key
 
 ## Installation
@@ -82,7 +81,7 @@ npm run benchmark
 
 ## How It Works
 
-1. **Preprocessing** - The image is processed through a PIL pipeline:
+1. **Preprocessing** - The image is processed through a sharp (libvips) pipeline:
    - Convert to grayscale
    - Apply Gaussian blur to smooth noise
    - Upscale 4x with Lanczos interpolation

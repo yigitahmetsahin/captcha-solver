@@ -1,38 +1,15 @@
 import fs from 'fs';
-import { execSync } from 'child_process';
 import path from 'path';
-
-// Inline Python script for image preprocessing
-// Uses PIL which produces optimal results for captcha OCR
-const PYTHON_SCRIPT = `
-import sys, base64, io
-from PIL import Image, ImageFilter, ImageEnhance, ImageOps
-
-image_path = sys.argv[1]
-img = Image.open(image_path)
-img = ImageOps.grayscale(img)
-img = img.filter(ImageFilter.GaussianBlur(radius=1.2))
-img = img.resize((img.width * 4, img.height * 4), Image.LANCZOS)
-img = ImageEnhance.Contrast(img).enhance(3.0)
-img = ImageEnhance.Sharpness(img).enhance(2.0)
-w, h = img.size
-img = img.crop((int(w * 0.10), int(h * 0.02), int(w * 0.90), int(h * 0.60)))
-padded = Image.new('L', (img.width + 60, img.height + 40), 255)
-padded.paste(img, (30, 20))
-padded = padded.convert('RGB')
-buf = io.BytesIO()
-padded.save(buf, format='PNG')
-sys.stdout.buffer.write(base64.b64encode(buf.getvalue()))
-`;
+import sharp from 'sharp';
 
 /**
- * Preprocess a captcha image using PIL (via Python subprocess).
+ * Preprocess a captcha image using sharp (libvips).
  *
  * Pipeline:
- *   1. Grayscale
- *   2. Gaussian blur (radius=1.2) to smooth dither pattern
- *   3. Upscale 4x with Lanczos
- *   4. Contrast 3x + Sharpness 2x (PIL enhancement — preserves soft gradients)
+ *   1. Gaussian blur in color space (smooths dither pattern)
+ *   2. Grayscale conversion
+ *   3. Upscale 4× with Lanczos
+ *   4. Contrast boost (3× around image mean) + sharpen
  *   5. Crop decorative borders
  *   6. Add white padding
  *
@@ -41,17 +18,58 @@ sys.stdout.buffer.write(base64.b64encode(buf.getvalue()))
 export async function preprocessCaptcha(imagePath: string): Promise<string> {
   const absPath = path.resolve(imagePath);
 
-  // Write the Python script to a temp file
-  const scriptPath = '/tmp/_captcha_preprocess.py';
-  fs.writeFileSync(scriptPath, PYTHON_SCRIPT);
+  // Read original dimensions for crop/resize calculations
+  const metadata = await sharp(absPath).metadata();
+  const origW = metadata.width!;
+  const origH = metadata.height!;
 
-  // Execute Python and capture base64 output
-  const result = execSync(`python3 "${scriptPath}" "${absPath}"`, {
-    maxBuffer: 10 * 1024 * 1024, // 10MB
-    encoding: 'utf-8',
-  });
+  // Step 1-2: Blur in color space (smooths dither pattern) → greyscale
+  // Separate from resize to prevent pipeline reordering
+  const smoothed = await sharp(absPath)
+    .blur(1.5)
+    .greyscale()
+    .toBuffer();
 
-  return result.trim();
+  // Step 3: Upscale 4× with Lanczos
+  const upscaled = await sharp(smoothed)
+    .resize(origW * 4, origH * 4, { kernel: 'lanczos3' })
+    .toBuffer();
+
+  // Step 4: Contrast 3× around actual image mean + sharpen
+  // Matches PIL's ImageEnhance.Contrast: output = factor*input + mean*(1-factor)
+  const stats = await sharp(upscaled).stats();
+  const mean = stats.channels[0].mean;
+  const enhanced = await sharp(upscaled)
+    .linear(3.0, mean * (1 - 3.0))
+    .sharpen({ sigma: 1.0, m1: 2.0, m2: 1.0 })
+    .toBuffer();
+
+  // Step 5: Crop decorative borders
+  // Remove 10% left/right, 2% top, 40% bottom (keep top 60%)
+  // Math.floor matches Python's int() truncation
+  const scaledW = origW * 4;
+  const scaledH = origH * 4;
+  const cropLeft = Math.floor(scaledW * 0.10);
+  const cropTop = Math.floor(scaledH * 0.02);
+  const cropRight = Math.floor(scaledW * 0.90);
+  const cropBottom = Math.floor(scaledH * 0.60);
+  const cropW = cropRight - cropLeft;
+  const cropH = cropBottom - cropTop;
+
+  // Step 5-6: Crop → add white padding → output PNG
+  const result = await sharp(enhanced)
+    .extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH })
+    .extend({
+      top: 20,
+      bottom: 20,
+      left: 30,
+      right: 30,
+      background: { r: 255, g: 255, b: 255 },
+    })
+    .png()
+    .toBuffer();
+
+  return result.toString('base64');
 }
 
 /**
