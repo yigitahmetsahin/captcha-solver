@@ -30,20 +30,22 @@ npm install @yigitahmetsahin/captcha-solver
 
 ```typescript
 import 'dotenv/config';
-import { solveCaptchaImage } from '@yigitahmetsahin/captcha-solver';
+import { Solver } from '@yigitahmetsahin/captcha-solver';
 
-const answer = await solveCaptchaImage('./captcha.png', {
+const solver = new Solver(process.env.OPENAI_API_KEY!);
+const { text, attempts, usage } = await solver.solve('./captcha.png', {
   numAttempts: 5,
   expectedLength: 4,
-  model: 'o3',
 });
 
-console.log('Captcha answer:', answer);
+console.log('Captcha answer:', text);
+console.log('Attempts:', attempts);
+console.log('Total tokens:', usage.totalTokens);
 ```
 
 ## API
 
-### `solveCaptchaImage(imagePath, options?)`
+### `solver.solve(input, options?)`
 
 Solve a captcha image using AI vision + preprocessing + parallel majority voting.
 
@@ -57,7 +59,16 @@ Solve a captcha image using AI vision + preprocessing + parallel majority voting
 | `maxRetries`     | `number`  | `2`        | Max retries per attempt on API failure          |
 | `verbose`        | `boolean` | `true`     | Whether to log attempt details                  |
 
-**Returns:** `Promise<string>` - The solved captcha text.
+**Returns:** `Promise<SolveResult>`
+
+```typescript
+interface SolveResult {
+  text: string; // Majority-voted captcha answer
+  attempts: string[]; // Per-attempt raw answers
+  usage: LanguageModelUsage; // Aggregated token usage
+  attemptUsages: LanguageModelUsage[]; // Per-attempt token usage
+}
+```
 
 ### `preprocessCaptcha(imagePath)`
 

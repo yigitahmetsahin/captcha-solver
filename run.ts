@@ -48,11 +48,12 @@ async function main() {
     // --- Single solve ---
     const label = [model, provider].filter(Boolean).join(', ');
     console.log(`Solving captcha from: ${resolvedPath}` + (label ? ` (${label})` : ''));
-    const answer = await solver.solve(resolvedPath, {
+    const result = await solver.solve(resolvedPath, {
       numAttempts: 5,
       expectedLength: 4,
     });
-    console.log(`\nCaptcha answer: ${answer}`);
+    console.log(`\nCaptcha answer: ${result.text}`);
+    console.log(`Tokens used: ${result.usage.totalTokens ?? 'N/A'}`);
     return;
   }
 
@@ -67,14 +68,14 @@ async function main() {
 
   for (let run = 1; run <= benchmarkCount; run++) {
     console.log(`========== RUN ${run}/${benchmarkCount} ==========`);
-    const answer = await solver.solve(resolvedPath, {
+    const result = await solver.solve(resolvedPath, {
       numAttempts: 5,
       expectedLength: 4,
       verbose: true,
     });
-    const pass = answer === CORRECT;
-    results.push({ answer, pass });
-    console.log(`  Final: ${answer}  |  ${pass ? 'PASS' : 'FAIL'}\n`);
+    const pass = result.text === CORRECT;
+    results.push({ answer: result.text, pass });
+    console.log(`  Final: ${result.text}  |  ${pass ? 'PASS' : 'FAIL'}\n`);
   }
 
   // --- Summary ---
