@@ -34,6 +34,10 @@ export interface PreprocessOptions {
   crop?: 'auto' | 'legacy' | 'none' | CropFractions;
   /** Add white padding around the result (default: true). Pass false to skip, or a number for custom px. */
   padding?: boolean | number;
+  /** Invert colors (negate) after processing (default: false) */
+  negate?: boolean;
+  /** Convert to greyscale (default: true) */
+  greyscale?: boolean;
 }
 
 const LEGACY_CROP: CropFractions = { left: 0.1, top: 0.02, right: 0.9, bottom: 0.6 };
@@ -73,6 +77,8 @@ export async function preprocessCaptchaToBuffer(
     sharpen = true,
     crop = 'auto',
     padding = true,
+    negate = false,
+    greyscale = true,
   } = options ?? {};
 
   const source = typeof input === 'string' ? path.resolve(input) : input;
@@ -82,10 +88,11 @@ export async function preprocessCaptchaToBuffer(
   const origW = metadata.width!;
   const origH = metadata.height!;
 
-  // Step 1-2: Blur (optional) + greyscale
+  // Step 1-2: Blur (optional) + greyscale (optional)
   let pipeline = sharp(source);
   if (blur > 0) pipeline = pipeline.blur(blur);
-  const smoothed = await pipeline.greyscale().toBuffer();
+  if (greyscale) pipeline = pipeline.greyscale();
+  const smoothed = await pipeline.toBuffer();
 
   // Step 3: Upscale with Lanczos
   const upscaled = await sharp(smoothed)
@@ -127,14 +134,17 @@ export async function preprocessCaptchaToBuffer(
       .toBuffer();
   }
 
-  // Step 6: Padding
+  // Step 6: Negate (optional)
+  const final = negate ? await sharp(cropped).negate().toBuffer() : cropped;
+
+  // Step 7: Padding
   if (padding === false) {
-    return sharp(cropped).png().toBuffer();
+    return sharp(final).png().toBuffer();
   }
   const pad = typeof padding === 'number' ? padding : undefined;
   const vPad = pad ?? 20;
   const hPad = pad ?? 30;
-  return sharp(cropped)
+  return sharp(final)
     .extend({
       top: vPad,
       bottom: vPad,

@@ -3,11 +3,13 @@ import { generateText } from 'ai';
 import type { PreprocessOptions } from './preprocess.js';
 import { preprocessCaptchaToBuffer } from './preprocess.js';
 
-const PROMPT = `You are an assistant helping a visually impaired person read distorted text from an image.
-The text contains uppercase letters A-Z and/or digits 0-9.
-A thin vertical stroke is the digit 1. Never read it as the letter I or L.
-A round closed shape is the letter O, not the letter D.
-Output ONLY the exact characters you read, nothing else.`;
+const PROMPT = `You are an expert OCR assistant reading distorted text from a CAPTCHA image.
+Two versions of the same captcha are provided. Cross-reference both to determine the correct text.
+The text may contain uppercase letters (A-Z), lowercase letters (a-z), and/or digits (0-9).
+Pay close attention to:
+- Letter case: lowercase "e" has a horizontal bar inside, digit "0" does not. Lowercase "r" has a short descender, uppercase "T" has a flat top.
+- Similar shapes: "5" has a flat top + curved bottom, "S" is fully curved. "4" has an angled stroke, "A" has a pointed top. "6" has a closed bottom loop, "8" has two loops. "2" has a curved top + flat bottom, "Z" has all straight lines.
+Output ONLY the exact characters you read, preserving case. Nothing else.`;
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -21,7 +23,7 @@ export interface SolverOptions {
 }
 
 export interface SolveOptions {
-  /** Number of voting attempts (default: 5) */
+  /** Number of voting attempts (default: 7) */
   numAttempts?: number;
   /** Expected captcha length — results of other lengths are discarded */
   expectedLength?: number;
@@ -296,7 +298,7 @@ export class Solver {
    */
   async solve(input: string | Buffer, options: SolveOptions = {}): Promise<SolveResult> {
     const {
-      numAttempts = 5,
+      numAttempts = 7,
       expectedLength,
       maxRetries = 2,
       verbose = true,
@@ -305,11 +307,28 @@ export class Solver {
     } = options;
 
     const model = await this.getModel();
-    const imageBuffer = await preprocessCaptchaToBuffer(input, preprocess);
+
+    // Two complementary views:
+    // 1. Enhanced grayscale (high contrast + auto-crop) — great for clear text
+    // 2. Color original (upscaled, no greyscale, no contrast) — preserves subtle features
+    const [enhancedBuffer, colorBuffer] = await Promise.all([
+      preprocessCaptchaToBuffer(input, preprocess),
+      preprocessCaptchaToBuffer(input, {
+        blur: 0,
+        scale: 4,
+        contrast: 1.0,
+        sharpen: false,
+        crop: 'none',
+        padding: 40,
+        greyscale: false,
+      }),
+    ]);
 
     // Fire all attempts in parallel for speed
     const results = await Promise.all(
-      Array.from({ length: numAttempts }, () => this.singleAttempt(model, imageBuffer, maxRetries))
+      Array.from({ length: numAttempts }, () =>
+        this.singleAttempt(model, enhancedBuffer, colorBuffer, maxRetries)
+      )
     );
     const valid = results.filter((r): r is AttemptResult => r !== null);
     if (verbose) {
@@ -339,7 +358,8 @@ export class Solver {
    */
   private async singleAttempt(
     model: LanguageModel,
-    imageBuffer: Buffer,
+    primaryBuffer: Buffer,
+    secondaryBuffer: Buffer,
     maxRetries: number
   ): Promise<AttemptResult | null> {
     for (let retry = 0; retry <= maxRetries; retry++) {
@@ -351,7 +371,8 @@ export class Solver {
               role: 'user',
               content: [
                 { type: 'text', text: PROMPT },
-                { type: 'image', image: imageBuffer },
+                { type: 'image', image: primaryBuffer },
+                { type: 'image', image: secondaryBuffer },
               ],
             },
           ],
@@ -375,7 +396,7 @@ export class Solver {
         }
 
         // Clean: keep only uppercase letters and digits
-        const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const cleaned = raw.replace(/[^A-Za-z0-9]/g, '');
         return cleaned ? { text: cleaned, usage } : null;
       } catch (_err) {
         if (retry < maxRetries) {
