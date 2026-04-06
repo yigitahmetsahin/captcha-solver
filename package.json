@@ -26,7 +26,8 @@
     "format": "prettier --write .",
     "lint": "npm run format && eslint src --fix && tsc --noEmit -p tsconfig.check.json",
     "lint:check": "prettier --check . && eslint src && tsc --noEmit -p tsconfig.check.json",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepare": "husky"
   },
   "keywords": [
     "captcha",
@@ -62,6 +63,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "prettier": "^3.8.1",
     "tsup": "^8.5.1",
     "tsx": "^4.19.0",
@@ -70,9 +72,9 @@
     "vitest": "^4.0.17"
   },
   "peerDependencies": {
-    "@ai-sdk/openai": ">=1.0.0",
     "@ai-sdk/anthropic": ">=1.0.0",
-    "@ai-sdk/google": ">=1.0.0"
+    "@ai-sdk/google": ">=1.0.0",
+    "@ai-sdk/openai": ">=1.0.0"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/openai": {
