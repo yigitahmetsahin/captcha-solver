@@ -1,5 +1,6 @@
 import type { LanguageModel, LanguageModelUsage } from 'ai';
 import { generateText } from 'ai';
+import type { PreprocessOptions } from './preprocess.js';
 import { preprocessCaptchaToBuffer } from './preprocess.js';
 
 const PROMPT = `You are an assistant helping a visually impaired person read distorted text from an image.
@@ -28,6 +29,15 @@ export interface SolveOptions {
   maxRetries?: number;
   /** Whether to log attempt details (default: true) */
   verbose?: boolean;
+  /**
+   * Confusion groups for majority voting.
+   * Pass a Record<string, string> to merge visually similar characters,
+   * or `false` to disable (default: false).
+   * Use LEGACY_CONFUSION_GROUPS to restore pre-3.0 behavior.
+   */
+  confusionGroups?: Record<string, string> | false;
+  /** Preprocessing options passed to the image pipeline */
+  preprocess?: PreprocessOptions;
 }
 
 export interface SolveResult {
@@ -84,10 +94,12 @@ async function resolveModel(
 // ── Confusion groups ─────────────────────────────────────────────────
 
 /**
- * Characters the model commonly misreads as each other.
- * Each group maps to its canonical (most likely correct) character.
+ * Pre-3.0 confusion groups that merge visually similar characters.
+ * Opt-in via `{ confusionGroups: LEGACY_CONFUSION_GROUPS }`.
+ *
+ * Maps: 1/I/L → '1', O/D/0 → 'O', S/5 → 'S', Z/2 → 'Z'
  */
-const CONFUSION_GROUPS: Record<string, string> = {
+export const LEGACY_CONFUSION_GROUPS: Record<string, string> = {
   '1': '1',
   I: '1',
   L: '1',
@@ -104,10 +116,14 @@ const CONFUSION_GROUPS: Record<string, string> = {
 
 /**
  * Character-level majority vote across multiple attempts.
- * Uses confusion-aware voting: characters that the model commonly
- * confuses (e.g. 1/I/L, O/D/0) are grouped together during counting.
+ * When `groups` is provided, visually similar characters are merged
+ * during counting (e.g. 1/I/L all count toward '1').
  */
-function majorityVote(attempts: string[], expectedLength?: number): string {
+export function majorityVote(
+  attempts: string[],
+  expectedLength?: number,
+  groups?: Record<string, string> | false
+): string {
   let filtered = expectedLength ? attempts.filter((a) => a.length === expectedLength) : attempts;
 
   if (filtered.length === 0) {
@@ -132,7 +148,9 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
   const sameLenAttempts = filtered.filter((a) => a.length === bestLen);
   if (sameLenAttempts.length === 0) return filtered[0];
 
-  // Vote per character position with confusion-aware grouping
+  const useGroups = groups && typeof groups === 'object' ? groups : undefined;
+
+  // Vote per character position
   const result: string[] = [];
   for (let pos = 0; pos < bestLen; pos++) {
     const charCounts = new Map<string, number>();
@@ -141,22 +159,35 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
       charCounts.set(ch, (charCounts.get(ch) ?? 0) + 1);
     }
 
-    const groupCounts = new Map<string, number>();
-    for (const [ch, count] of charCounts) {
-      const canonical = CONFUSION_GROUPS[ch] ?? ch;
-      groupCounts.set(canonical, (groupCounts.get(canonical) ?? 0) + count);
-    }
-
-    let bestGroup = '';
-    let bestGroupCount = 0;
-    for (const [canonical, count] of groupCounts) {
-      if (count > bestGroupCount) {
-        bestGroup = canonical;
-        bestGroupCount = count;
+    if (useGroups) {
+      // Confusion-aware voting
+      const groupCounts = new Map<string, number>();
+      for (const [ch, count] of charCounts) {
+        const canonical = useGroups[ch] ?? ch;
+        groupCounts.set(canonical, (groupCounts.get(canonical) ?? 0) + count);
       }
-    }
 
-    result.push(bestGroup);
+      let bestGroup = '';
+      let bestGroupCount = 0;
+      for (const [canonical, count] of groupCounts) {
+        if (count > bestGroupCount) {
+          bestGroup = canonical;
+          bestGroupCount = count;
+        }
+      }
+      result.push(bestGroup);
+    } else {
+      // Simple majority — pick the most frequent raw character
+      let bestChar = '';
+      let bestCharCount = 0;
+      for (const [ch, count] of charCounts) {
+        if (count > bestCharCount) {
+          bestChar = ch;
+          bestCharCount = count;
+        }
+      }
+      result.push(bestChar);
+    }
   }
 
   return result.join('');
@@ -264,10 +295,17 @@ export class Solver {
    * @returns Solved text, per-attempt answers, and token usage
    */
   async solve(input: string | Buffer, options: SolveOptions = {}): Promise<SolveResult> {
-    const { numAttempts = 5, expectedLength, maxRetries = 2, verbose = true } = options;
+    const {
+      numAttempts = 5,
+      expectedLength,
+      maxRetries = 2,
+      verbose = true,
+      confusionGroups = false,
+      preprocess,
+    } = options;
 
     const model = await this.getModel();
-    const imageBuffer = await preprocessCaptchaToBuffer(input);
+    const imageBuffer = await preprocessCaptchaToBuffer(input, preprocess);
 
     // Fire all attempts in parallel for speed
     const results = await Promise.all(
@@ -287,7 +325,12 @@ export class Solver {
       return { text: '', attempts, usage, attemptUsages };
     }
 
-    return { text: majorityVote(attempts, expectedLength), attempts, usage, attemptUsages };
+    return {
+      text: majorityVote(attempts, expectedLength, confusionGroups),
+      attempts,
+      usage,
+      attemptUsages,
+    };
   }
 
   /**
