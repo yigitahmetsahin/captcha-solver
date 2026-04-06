@@ -1,4 +1,4 @@
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, LanguageModelUsage } from 'ai';
 import { generateText } from 'ai';
 import { preprocessCaptchaToBuffer } from './preprocess.js';
 
@@ -28,6 +28,22 @@ export interface SolveOptions {
   maxRetries?: number;
   /** Whether to log attempt details (default: true) */
   verbose?: boolean;
+}
+
+export interface SolveResult {
+  /** The solved captcha text (majority-voted) */
+  text: string;
+  /** Per-attempt raw answers (before voting) */
+  attempts: string[];
+  /** Aggregated token usage across all parallel attempts */
+  usage: LanguageModelUsage;
+  /** Per-attempt usage breakdown */
+  attemptUsages: LanguageModelUsage[];
+}
+
+interface AttemptResult {
+  text: string;
+  usage: LanguageModelUsage;
 }
 
 // ── Provider resolution ──────────────────────────────────────────────
@@ -146,6 +162,59 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
   return result.join('');
 }
 
+// ── Usage aggregation ────────────────────────────────────────────────
+
+function sumOptional(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined && b === undefined) return undefined;
+  return (a ?? 0) + (b ?? 0);
+}
+
+function aggregateUsage(usages: LanguageModelUsage[]): LanguageModelUsage {
+  const zero: LanguageModelUsage = {
+    inputTokens: undefined,
+    inputTokenDetails: {
+      noCacheTokens: undefined,
+      cacheReadTokens: undefined,
+      cacheWriteTokens: undefined,
+    },
+    outputTokens: undefined,
+    outputTokenDetails: {
+      textTokens: undefined,
+      reasoningTokens: undefined,
+    },
+    totalTokens: undefined,
+  };
+  return usages.reduce<LanguageModelUsage>(
+    (acc, u) => ({
+      inputTokens: sumOptional(acc.inputTokens, u.inputTokens),
+      inputTokenDetails: {
+        noCacheTokens: sumOptional(
+          acc.inputTokenDetails.noCacheTokens,
+          u.inputTokenDetails.noCacheTokens
+        ),
+        cacheReadTokens: sumOptional(
+          acc.inputTokenDetails.cacheReadTokens,
+          u.inputTokenDetails.cacheReadTokens
+        ),
+        cacheWriteTokens: sumOptional(
+          acc.inputTokenDetails.cacheWriteTokens,
+          u.inputTokenDetails.cacheWriteTokens
+        ),
+      },
+      outputTokens: sumOptional(acc.outputTokens, u.outputTokens),
+      outputTokenDetails: {
+        textTokens: sumOptional(acc.outputTokenDetails.textTokens, u.outputTokenDetails.textTokens),
+        reasoningTokens: sumOptional(
+          acc.outputTokenDetails.reasoningTokens,
+          u.outputTokenDetails.reasoningTokens
+        ),
+      },
+      totalTokens: sumOptional(acc.totalTokens, u.totalTokens),
+    }),
+    zero
+  );
+}
+
 // ── Solver class ─────────────────────────────────────────────────────
 
 export class Solver {
@@ -192,9 +261,9 @@ export class Solver {
    *
    * @param input - File path (string) or raw image Buffer
    * @param options - Solve options (attempts, expected length, etc.)
-   * @returns The captcha text
+   * @returns Solved text, per-attempt answers, and token usage
    */
-  async solve(input: string | Buffer, options: SolveOptions = {}): Promise<string> {
+  async solve(input: string | Buffer, options: SolveOptions = {}): Promise<SolveResult> {
     const { numAttempts = 5, expectedLength, maxRetries = 2, verbose = true } = options;
 
     const model = await this.getModel();
@@ -204,17 +273,21 @@ export class Solver {
     const results = await Promise.all(
       Array.from({ length: numAttempts }, () => this.singleAttempt(model, imageBuffer, maxRetries))
     );
-    const attempts = results.filter((r): r is string => r !== null);
+    const valid = results.filter((r): r is AttemptResult => r !== null);
     if (verbose) {
-      attempts.forEach((r, i) => console.log(`  Attempt ${i + 1}: ${r}`));
+      valid.forEach((r, i) => console.log(`  Attempt ${i + 1}: ${r.text}`));
     }
+
+    const attempts = valid.map((r) => r.text);
+    const attemptUsages = valid.map((r) => r.usage);
+    const usage = aggregateUsage(attemptUsages);
 
     if (attempts.length === 0) {
       if (verbose) console.log('  All attempts failed!');
-      return '';
+      return { text: '', attempts, usage, attemptUsages };
     }
 
-    return majorityVote(attempts, expectedLength);
+    return { text: majorityVote(attempts, expectedLength), attempts, usage, attemptUsages };
   }
 
   /**
@@ -225,10 +298,10 @@ export class Solver {
     model: LanguageModel,
     imageBuffer: Buffer,
     maxRetries: number
-  ): Promise<string | null> {
+  ): Promise<AttemptResult | null> {
     for (let retry = 0; retry <= maxRetries; retry++) {
       try {
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model,
           messages: [
             {
@@ -260,7 +333,7 @@ export class Solver {
 
         // Clean: keep only uppercase letters and digits
         const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        return cleaned || null;
+        return cleaned ? { text: cleaned, usage } : null;
       } catch (_err) {
         if (retry < maxRetries) {
           await new Promise((r) => setTimeout(r, 1000 * (retry + 1)));
