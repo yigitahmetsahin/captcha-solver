@@ -202,9 +202,7 @@ export class Solver {
 
     // Fire all attempts in parallel for speed
     const results = await Promise.all(
-      Array.from({ length: numAttempts }, () =>
-        this.singleAttempt(model, imageBuffer, maxRetries),
-      ),
+      Array.from({ length: numAttempts }, () => this.singleAttempt(model, imageBuffer, maxRetries))
     );
     const attempts = results.filter((r): r is string => r !== null);
     if (verbose) {
