@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { preprocessCaptcha } from './preprocess.js';
 
 const TEST_CAPTCHA = path.resolve(__dirname, '..', 'test-captcha.png');
+const hasFixture = fs.existsSync(TEST_CAPTCHA);
 
-describe('preprocessCaptcha', () => {
+describe.skipIf(!hasFixture)('preprocessCaptcha', () => {
   it('returns a valid base64-encoded PNG', async () => {
     const b64 = await preprocessCaptcha(TEST_CAPTCHA);
 
