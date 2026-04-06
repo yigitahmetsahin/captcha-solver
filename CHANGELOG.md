@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.2.1...v2.0.0) (2026-04-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* solve() returns SolveResult instead of string. Access the answer via result.text.
+
+### Features
+
+* return SolveResult with token usage from solve() ([6b2c583](https://github.com/yigitahmetsahin/captcha-solver/commit/6b2c583390054c3a7b6bf8d7e72a1203c1812ea5))
+
 ## [1.2.1](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.2.0...v1.2.1) (2026-04-06)
 
 
