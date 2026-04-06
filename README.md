@@ -1,6 +1,6 @@
 # @yigitahmetsahin/captcha-solver
 
-AI-powered captcha solver using image preprocessing and OpenAI vision models with majority voting.
+AI-powered captcha solver using image preprocessing and vision models with parallel majority voting. Supports OpenAI, Anthropic, and Google providers via the Vercel AI SDK.
 
 [![CI](https://github.com/yigitahmetsahin/captcha-solver/actions/workflows/ci.yml/badge.svg)](https://github.com/yigitahmetsahin/captcha-solver/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -8,16 +8,17 @@ AI-powered captcha solver using image preprocessing and OpenAI vision models wit
 
 ## Features
 
-- **AI Vision OCR** - Uses OpenAI vision models (o3, gpt-4o, etc.) to read distorted captcha text
+- **AI Vision OCR** - Uses vision models (OpenAI, Anthropic, Google) to read distorted captcha text
 - **Image Preprocessing** - Sharp/libvips pipeline: grayscale, blur, upscale, contrast/sharpness enhancement, cropping
-- **Majority Voting** - Runs multiple attempts and uses character-level majority voting for accuracy
-- **Configurable** - Adjustable model, attempt count, expected length, and verbosity
+- **Parallel Majority Voting** - Fires all attempts concurrently and uses character-level majority voting for accuracy
+- **Multi-Provider** - Supports OpenAI, Anthropic, and Google via Vercel AI SDK
+- **Configurable** - Adjustable provider, model, attempt count, expected length, and verbosity
 - **TypeScript** - Full type safety with strict mode
 
 ## Prerequisites
 
 - Node.js >= 18
-- OpenAI API key
+- An API key for at least one supported provider (OpenAI, Anthropic, or Google)
 
 ## Installation
 
@@ -44,17 +45,17 @@ console.log('Captcha answer:', answer);
 
 ### `solveCaptchaImage(imagePath, options?)`
 
-Solve a captcha image using OpenAI vision + preprocessing + majority voting.
+Solve a captcha image using AI vision + preprocessing + parallel majority voting.
 
 **Parameters:**
 
-| Option           | Type      | Default | Description                                     |
-| ---------------- | --------- | ------- | ----------------------------------------------- |
-| `model`          | `string`  | `'o3'`  | OpenAI model to use                             |
-| `numAttempts`    | `number`  | `5`     | Number of voting attempts                       |
-| `expectedLength` | `number`  | -       | Expected captcha length (filters wrong lengths) |
-| `maxRetries`     | `number`  | `2`     | Max retries per attempt on API failure          |
-| `verbose`        | `boolean` | `true`  | Whether to log attempt details                  |
+| Option           | Type      | Default    | Description                                     |
+| ---------------- | --------- | ---------- | ----------------------------------------------- |
+| `model`          | `string`  | `'gpt-4o'` | Model ID passed to the provider                 |
+| `numAttempts`    | `number`  | `5`        | Number of parallel voting attempts              |
+| `expectedLength` | `number`  | -          | Expected captcha length (filters wrong lengths) |
+| `maxRetries`     | `number`  | `2`        | Max retries per attempt on API failure          |
+| `verbose`        | `boolean` | `true`     | Whether to log attempt details                  |
 
 **Returns:** `Promise<string>` - The solved captcha text.
 
@@ -89,9 +90,9 @@ npm run benchmark
    - Crop decorative borders
    - Add white padding
 
-2. **Multiple Attempts** - The preprocessed image is sent to OpenAI's vision API multiple times with temperature=1 for diverse responses.
+2. **Parallel Attempts** - The preprocessed image is sent to the vision API concurrently across all attempts (via `Promise.all`) with temperature=1 for diverse responses.
 
-3. **Majority Voting** - Character-level majority voting across all attempts determines the final answer, filtering by expected length if specified.
+3. **Majority Voting** - Character-level majority voting across all parallel attempts determines the final answer, filtering by expected length if specified.
 
 ## Development
 
