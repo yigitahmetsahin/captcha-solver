@@ -1,0 +1,2 @@
+export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node/ | tail -1)/bin:$PATH"
+npm run lint:check
