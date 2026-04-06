@@ -11,15 +11,11 @@ describe('majorityVote', () => {
   });
 
   it('merges 2→Z with legacy confusion groups', () => {
-    expect(majorityVote(['W287', 'W287', 'W287'], undefined, LEGACY_CONFUSION_GROUPS)).toBe(
-      'WZ87'
-    );
+    expect(majorityVote(['W287', 'W287', 'W287'], undefined, LEGACY_CONFUSION_GROUPS)).toBe('WZ87');
   });
 
   it('merges O/D/0 with legacy confusion groups', () => {
-    expect(majorityVote(['O1RW', 'D1RW', '01RW'], undefined, LEGACY_CONFUSION_GROUPS)).toBe(
-      'O1RW'
-    );
+    expect(majorityVote(['O1RW', 'D1RW', '01RW'], undefined, LEGACY_CONFUSION_GROUPS)).toBe('O1RW');
   });
 
   it('does not merge O/D/0 without confusion groups', () => {
