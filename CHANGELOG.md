@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.1.0...v1.2.0) (2026-04-06)
+
+
+### Features
+
+* replace OpenAI SDK with Vercel AI SDK for multi-provider support ([4e189ed](https://github.com/yigitahmetsahin/captcha-solver/commit/4e189ed9b99e26eccf58b6ab42fa263137bd5a34))
+
+
+### Bug Fixes
+
+* regenerate lockfile to fix npm ci in CI ([a193173](https://github.com/yigitahmetsahin/captcha-solver/commit/a193173dc53bd611b29b45891bbe3880a769193a))
+
 ## [1.1.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.0.1...v1.1.0) (2026-04-06)
 
 
