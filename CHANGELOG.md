@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/yigitahmetsahin/captcha-solver/compare/v2.0.0...v2.0.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* track test-captcha.png in repo and use it as default in run.ts ([57009eb](https://github.com/yigitahmetsahin/captcha-solver/commit/57009eb70f1d65a3bcb556e092d77f6f1c4bac47))
+
 ## [2.0.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v1.2.1...v2.0.0) (2026-04-06)
 
 
