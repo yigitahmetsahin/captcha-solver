@@ -25,7 +25,7 @@ async function main() {
     skipArgs.add(args[providerIdx + 1]);
   }
   const imagePath =
-    args.find((a, i) => !a.startsWith('--') && !skipArgs.has(a)) || '../ornek-captcha.png';
+    args.find((a, i) => !a.startsWith('--') && !skipArgs.has(a)) || 'test-captcha.png';
 
   const resolvedPath = path.resolve(imagePath);
 
