@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
-import { Solver } from './src/index.js';
+import { Solver, LEGACY_CONFUSION_GROUPS } from './src/index.js';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -51,6 +51,7 @@ async function main() {
     const result = await solver.solve(resolvedPath, {
       numAttempts: 5,
       expectedLength: 4,
+      confusionGroups: LEGACY_CONFUSION_GROUPS,
     });
     console.log(`\nCaptcha answer: ${result.text}`);
     console.log(`Tokens used: ${result.usage.totalTokens ?? 'N/A'}`);
@@ -72,6 +73,7 @@ async function main() {
       numAttempts: 5,
       expectedLength: 4,
       verbose: true,
+      confusionGroups: LEGACY_CONFUSION_GROUPS,
     });
     const pass = result.text === CORRECT;
     results.push({ answer: result.text, pass });
