@@ -1,5 +1,6 @@
-import OpenAI from 'openai';
-import { preprocessCaptcha } from './preprocess.js';
+import type { LanguageModel } from 'ai';
+import { generateText } from 'ai';
+import { preprocessCaptchaToBuffer } from './preprocess.js';
 
 const PROMPT = `You are an assistant helping a visually impaired person read distorted text from an image.
 The text contains uppercase letters A-Z and/or digits 0-9.
@@ -7,12 +8,21 @@ A thin vertical stroke is the digit 1. Never read it as the letter I or L.
 A round closed shape is the letter O, not the letter D.
 Output ONLY the exact characters you read, nothing else.`;
 
-interface SolverOptions {
-  /** OpenAI model to use (default: "o3") */
+// ── Types ────────────────────────────────────────────────────────────
+
+export type Provider = 'openai' | 'anthropic' | 'google';
+
+export interface SolverOptions {
+  /** AI provider to use when constructing the model from an API key (default: "openai") */
+  provider?: Provider;
+  /** Model ID passed to the provider (default: "gpt-4o") */
   model?: string;
+}
+
+export interface SolveOptions {
   /** Number of voting attempts (default: 5) */
   numAttempts?: number;
-  /** Expected captcha length — results of other lengths are discarded (default: undefined = no filter) */
+  /** Expected captcha length — results of other lengths are discarded */
   expectedLength?: number;
   /** Max retries per attempt on API failure (default: 2) */
   maxRetries?: number;
@@ -20,110 +30,73 @@ interface SolverOptions {
   verbose?: boolean;
 }
 
-/**
- * Make a single API call to read the captcha.
- * Retries up to `maxRetries` times on failure.
- */
-async function singleAttempt(
-  client: OpenAI,
-  base64Image: string,
-  model: string,
-  maxRetries: number
-): Promise<string | null> {
-  for (let retry = 0; retry <= maxRetries; retry++) {
-    try {
-      // Reasoning models (o3, o4-mini) use max_completion_tokens;
-      // Standard models (gpt-4o, gpt-4.1, gpt-5.4-mini) use max_tokens.
-      const isReasoningModel = model.startsWith('o');
-      const tokenParam = isReasoningModel ? { max_completion_tokens: 2000 } : { max_tokens: 256 };
+// ── Provider resolution ──────────────────────────────────────────────
 
-      const response = await client.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: PROMPT },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/png;base64,${base64Image}`,
-                },
-              },
-            ],
-          },
-        ],
-        temperature: 1,
-        ...tokenParam,
-      });
+const DEFAULT_MODELS: Record<Provider, string> = {
+  openai: 'gpt-4o',
+  anthropic: 'claude-sonnet-4-20250514',
+  google: 'gemini-2.0-flash',
+};
 
-      const raw = response.choices[0]?.message?.content?.trim() ?? '';
-
-      // Detect refusals
-      const lower = raw.toLowerCase();
-      if (
-        lower.includes('sorry') ||
-        lower.includes("can't help") ||
-        lower.includes('cannot help') ||
-        lower.includes('unable to') ||
-        lower.includes("i can't") ||
-        raw.length > 20
-      ) {
-        return null; // Model refused — don't count as an attempt
-      }
-
-      // Clean: keep only uppercase letters and digits
-      const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      return cleaned || null;
-    } catch (_err) {
-      if (retry < maxRetries) {
-        // Wait briefly before retry
-        await new Promise((r) => setTimeout(r, 1000 * (retry + 1)));
-        continue;
-      }
-      return null;
+async function resolveModel(
+  apiKey: string,
+  provider: Provider,
+  modelId: string
+): Promise<LanguageModel> {
+  switch (provider) {
+    case 'openai': {
+      const { createOpenAI } = await import('@ai-sdk/openai');
+      return createOpenAI({ apiKey })(modelId);
     }
+    case 'anthropic': {
+      // @ts-expect-error — optional peer dependency
+      const { createAnthropic } = await import('@ai-sdk/anthropic');
+      return createAnthropic({ apiKey })(modelId);
+    }
+    case 'google': {
+      // @ts-expect-error — optional peer dependency
+      const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
+      return createGoogleGenerativeAI({ apiKey })(modelId);
+    }
+    default:
+      throw new Error(
+        `Unknown provider "${provider}". Install the matching @ai-sdk/* package and pass the model directly.`
+      );
   }
-  return null;
 }
 
+// ── Confusion groups ─────────────────────────────────────────────────
+
 /**
- * Confusion groups: characters the model commonly misreads as each other.
+ * Characters the model commonly misreads as each other.
  * Each group maps to its canonical (most likely correct) character.
  */
 const CONFUSION_GROUPS: Record<string, string> = {
-  // Thin vertical strokes → digit 1
   '1': '1',
   I: '1',
   L: '1',
-  // Round shapes → letter O
   O: 'O',
   D: 'O',
   '0': 'O',
-  // Similar curves
   S: 'S',
   '5': 'S',
-  // Straight edges
   Z: 'Z',
   '2': 'Z',
 };
 
+// ── Majority voting ──────────────────────────────────────────────────
+
 /**
  * Character-level majority vote across multiple attempts.
- *
  * Uses confusion-aware voting: characters that the model commonly
  * confuses (e.g. 1/I/L, O/D/0) are grouped together during counting.
- * The canonical character for the winning group is used.
  */
 function majorityVote(attempts: string[], expectedLength?: number): string {
-  // Filter to expected length if specified
   let filtered = expectedLength ? attempts.filter((a) => a.length === expectedLength) : attempts;
 
-  // If length filter removed everything, fall back to most common length
   if (filtered.length === 0) {
     filtered = attempts;
   }
-
   if (filtered.length === 0) return '';
 
   // Find most common length
@@ -146,21 +119,18 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
   // Vote per character position with confusion-aware grouping
   const result: string[] = [];
   for (let pos = 0; pos < bestLen; pos++) {
-    // Count raw characters
     const charCounts = new Map<string, number>();
     for (const a of sameLenAttempts) {
       const ch = a[pos];
       charCounts.set(ch, (charCounts.get(ch) ?? 0) + 1);
     }
 
-    // Group by canonical form and sum counts
     const groupCounts = new Map<string, number>();
     for (const [ch, count] of charCounts) {
       const canonical = CONFUSION_GROUPS[ch] ?? ch;
       groupCounts.set(canonical, (groupCounts.get(canonical) ?? 0) + count);
     }
 
-    // Pick the group with the highest combined count
     let bestGroup = '';
     let bestGroupCount = 0;
     for (const [canonical, count] of groupCounts) {
@@ -176,41 +146,136 @@ function majorityVote(attempts: string[], expectedLength?: number): string {
   return result.join('');
 }
 
-/**
- * Solve a captcha image using OpenAI vision + preprocessing + majority voting.
- */
-export async function solveCaptchaImage(
-  imagePath: string,
-  options: SolverOptions = {}
-): Promise<string> {
-  const { model = 'o3', numAttempts = 5, expectedLength, maxRetries = 2, verbose = true } = options;
+// ── Solver class ─────────────────────────────────────────────────────
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export class Solver {
+  private _model: LanguageModel | null = null;
+  private _pendingModel: Promise<LanguageModel> | null = null;
 
-  // Preprocess the image
-  const base64Processed = await preprocessCaptcha(imagePath);
-
-  // Run attempts — retry refusals/failures to guarantee numAttempts valid results
-  const attempts: string[] = [];
-  const maxTotalCalls = numAttempts + 4; // allow up to 4 extra calls for refusals
-  let callCount = 0;
-  while (attempts.length < numAttempts && callCount < maxTotalCalls) {
-    callCount++;
-    const result = await singleAttempt(client, base64Processed, model, maxRetries);
-    if (result) {
-      attempts.push(result);
-      if (verbose) console.log(`  Attempt ${attempts.length}: ${result}`);
+  /**
+   * Create a captcha solver.
+   *
+   * @example
+   * // Simple — defaults to OpenAI gpt-4o
+   * const solver = new Solver('sk-...');
+   *
+   * @example
+   * // Specify provider and model
+   * const solver = new Solver('sk-ant-...', { provider: 'anthropic', model: 'claude-sonnet-4-20250514' });
+   *
+   * @example
+   * // Pass an AI SDK model directly
+   * import { createOpenAI } from '@ai-sdk/openai';
+   * const openai = createOpenAI({ apiKey: 'sk-...' });
+   * const solver = new Solver(openai('gpt-4o'));
+   */
+  constructor(keyOrModel: string | LanguageModel, options?: SolverOptions) {
+    if (typeof keyOrModel === 'string') {
+      const provider = options?.provider ?? 'openai';
+      const modelId = options?.model ?? DEFAULT_MODELS[provider];
+      // Lazily resolve the model on first use
+      this._pendingModel = resolveModel(keyOrModel, provider, modelId);
     } else {
-      if (verbose) console.log(`  Call ${callCount}: (refused/failed, retrying...)`);
+      this._model = keyOrModel;
     }
   }
 
-  if (attempts.length === 0) {
-    if (verbose) console.log('  All attempts failed!');
-    return '';
+  private async getModel(): Promise<LanguageModel> {
+    if (this._model) return this._model;
+    this._model = await this._pendingModel!;
+    this._pendingModel = null;
+    return this._model;
   }
 
-  // Majority vote
-  const answer = majorityVote(attempts, expectedLength);
-  return answer;
+  /**
+   * Solve a captcha image.
+   *
+   * @param input - File path (string) or raw image Buffer
+   * @param options - Solve options (attempts, expected length, etc.)
+   * @returns The captcha text
+   */
+  async solve(input: string | Buffer, options: SolveOptions = {}): Promise<string> {
+    const { numAttempts = 5, expectedLength, maxRetries = 2, verbose = true } = options;
+
+    const model = await this.getModel();
+    const imageBuffer = await preprocessCaptchaToBuffer(input);
+
+    // Run attempts — retry refusals/failures to guarantee numAttempts valid results
+    const attempts: string[] = [];
+    const maxTotalCalls = numAttempts + 4;
+    let callCount = 0;
+
+    while (attempts.length < numAttempts && callCount < maxTotalCalls) {
+      callCount++;
+      const result = await this.singleAttempt(model, imageBuffer, maxRetries);
+      if (result) {
+        attempts.push(result);
+        if (verbose) console.log(`  Attempt ${attempts.length}: ${result}`);
+      } else {
+        if (verbose) console.log(`  Call ${callCount}: (refused/failed, retrying...)`);
+      }
+    }
+
+    if (attempts.length === 0) {
+      if (verbose) console.log('  All attempts failed!');
+      return '';
+    }
+
+    return majorityVote(attempts, expectedLength);
+  }
+
+  /**
+   * Make a single API call to read the captcha.
+   * Retries up to `maxRetries` times on failure.
+   */
+  private async singleAttempt(
+    model: LanguageModel,
+    imageBuffer: Buffer,
+    maxRetries: number
+  ): Promise<string | null> {
+    for (let retry = 0; retry <= maxRetries; retry++) {
+      try {
+        const { text } = await generateText({
+          model,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: PROMPT },
+                { type: 'image', image: imageBuffer },
+              ],
+            },
+          ],
+          temperature: 1,
+          maxOutputTokens: 256,
+        });
+
+        const raw = text.trim();
+
+        // Detect refusals
+        const lower = raw.toLowerCase();
+        if (
+          lower.includes('sorry') ||
+          lower.includes("can't help") ||
+          lower.includes('cannot help') ||
+          lower.includes('unable to') ||
+          lower.includes("i can't") ||
+          raw.length > 20
+        ) {
+          return null;
+        }
+
+        // Clean: keep only uppercase letters and digits
+        const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return cleaned || null;
+      } catch (_err) {
+        if (retry < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * (retry + 1)));
+          continue;
+        }
+        return null;
+      }
+    }
+    return null;
+  }
 }

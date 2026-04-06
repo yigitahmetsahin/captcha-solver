@@ -13,19 +13,29 @@ import sharp from 'sharp';
  *   5. Crop decorative borders
  *   6. Add white padding
  *
+ * Accepts a file path or a raw image Buffer.
  * Returns a base64-encoded PNG string.
  */
-export async function preprocessCaptcha(imagePath: string): Promise<string> {
-  const absPath = path.resolve(imagePath);
+export async function preprocessCaptcha(input: string | Buffer): Promise<string> {
+  const buf = await preprocessCaptchaToBuffer(input);
+  return buf.toString('base64');
+}
+
+/**
+ * Same preprocessing pipeline as `preprocessCaptcha`, but returns the
+ * resulting PNG as a raw Buffer (useful for AI SDK image content parts).
+ */
+export async function preprocessCaptchaToBuffer(input: string | Buffer): Promise<Buffer> {
+  const source = typeof input === 'string' ? path.resolve(input) : input;
 
   // Read original dimensions for crop/resize calculations
-  const metadata = await sharp(absPath).metadata();
+  const metadata = await sharp(source).metadata();
   const origW = metadata.width!;
   const origH = metadata.height!;
 
   // Step 1-2: Blur in color space (smooths dither pattern) → greyscale
   // Separate from resize to prevent pipeline reordering
-  const smoothed = await sharp(absPath).blur(1.5).greyscale().toBuffer();
+  const smoothed = await sharp(source).blur(1.5).greyscale().toBuffer();
 
   // Step 3: Upscale 4× with Lanczos
   const upscaled = await sharp(smoothed)
@@ -54,7 +64,7 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
   const cropH = cropBottom - cropTop;
 
   // Step 5-6: Crop → add white padding → output PNG
-  const result = await sharp(enhanced)
+  return sharp(enhanced)
     .extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH })
     .extend({
       top: 20,
@@ -65,8 +75,6 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
     })
     .png()
     .toBuffer();
-
-  return result.toString('base64');
 }
 
 /**

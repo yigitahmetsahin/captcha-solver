@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
-import { solveCaptchaImage } from './src/index.js';
+import { Solver } from './src/index.js';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -9,6 +9,8 @@ async function main() {
   const benchmarkCount = isBenchmark ? parseInt(args[benchmarkIdx + 1] || '20', 10) : 1;
   const modelIdx = args.indexOf('--model');
   const model = modelIdx !== -1 ? args[modelIdx + 1] : undefined;
+  const providerIdx = args.indexOf('--provider');
+  const provider = providerIdx !== -1 ? args[providerIdx + 1] : undefined;
   const skipArgs = new Set<string>();
   if (benchmarkIdx !== -1) {
     skipArgs.add(args[benchmarkIdx]);
@@ -18,18 +20,37 @@ async function main() {
     skipArgs.add(args[modelIdx]);
     skipArgs.add(args[modelIdx + 1]);
   }
+  if (providerIdx !== -1) {
+    skipArgs.add(args[providerIdx]);
+    skipArgs.add(args[providerIdx + 1]);
+  }
   const imagePath =
     args.find((a, i) => !a.startsWith('--') && !skipArgs.has(a)) || '../ornek-captcha.png';
 
   const resolvedPath = path.resolve(imagePath);
 
+  // Determine API key based on provider
+  const prov = (provider ?? 'openai') as 'openai' | 'anthropic' | 'google';
+  const envKeys: Record<string, string> = {
+    openai: 'OPENAI_API_KEY',
+    anthropic: 'ANTHROPIC_API_KEY',
+    google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+  };
+  const apiKey = process.env[envKeys[prov] ?? 'OPENAI_API_KEY'];
+  if (!apiKey) {
+    console.error(`Missing ${envKeys[prov]} environment variable`);
+    process.exit(1);
+  }
+
+  const solver = new Solver(apiKey, { provider: prov, model });
+
   if (!isBenchmark) {
     // --- Single solve ---
-    console.log(`Solving captcha from: ${resolvedPath}` + (model ? ` (model: ${model})` : ''));
-    const answer = await solveCaptchaImage(resolvedPath, {
+    const label = [model, provider].filter(Boolean).join(', ');
+    console.log(`Solving captcha from: ${resolvedPath}` + (label ? ` (${label})` : ''));
+    const answer = await solver.solve(resolvedPath, {
       numAttempts: 5,
       expectedLength: 4,
-      model,
     });
     console.log(`\nCaptcha answer: ${answer}`);
     return;
@@ -37,21 +58,19 @@ async function main() {
 
   // --- Benchmark mode ---
   const CORRECT = 'O1RW';
-  const modelName = model || 'o3';
   console.log(`Running ${benchmarkCount} benchmark solves...`);
   console.log(`Image: ${resolvedPath}`);
-  console.log(`Model: ${modelName}`);
+  console.log(`Provider: ${prov}${model ? `, Model: ${model}` : ''}`);
   console.log(`Expected: ${CORRECT}\n`);
 
   const results: { answer: string; pass: boolean }[] = [];
 
   for (let run = 1; run <= benchmarkCount; run++) {
     console.log(`========== RUN ${run}/${benchmarkCount} ==========`);
-    const answer = await solveCaptchaImage(resolvedPath, {
+    const answer = await solver.solve(resolvedPath, {
       numAttempts: 5,
       expectedLength: 4,
       verbose: true,
-      model,
     });
     const pass = answer === CORRECT;
     results.push({ answer, pass });

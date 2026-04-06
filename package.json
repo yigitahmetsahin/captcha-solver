@@ -1,7 +1,7 @@
 {
   "name": "@yigitahmetsahin/captcha-solver",
   "version": "1.1.0",
-  "description": "AI-powered captcha solver using image preprocessing and OpenAI vision models",
+  "description": "AI-powered captcha solver using image preprocessing and multi-provider vision models (Vercel AI SDK)",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -32,7 +32,10 @@
     "captcha",
     "solver",
     "ocr",
+    "ai-sdk",
     "openai",
+    "anthropic",
+    "google",
     "vision",
     "image-processing",
     "typescript"
@@ -48,11 +51,12 @@
   },
   "homepage": "https://github.com/yigitahmetsahin/captcha-solver#readme",
   "dependencies": {
+    "ai": "^6.0.146",
     "dotenv": "^16.4.7",
-    "openai": "^4.77.0",
     "sharp": "^0.33.5"
   },
   "devDependencies": {
+    "@ai-sdk/openai": "^3.0.50",
     "@eslint/js": "^9.39.2",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.0.18",
@@ -64,6 +68,16 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.53.1",
     "vitest": "^4.0.17"
+  },
+  "peerDependencies": {
+    "@ai-sdk/openai": ">=1.0.0",
+    "@ai-sdk/anthropic": ">=1.0.0",
+    "@ai-sdk/google": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/openai": { "optional": true },
+    "@ai-sdk/anthropic": { "optional": true },
+    "@ai-sdk/google": { "optional": true }
   },
   "engines": {
     "node": ">=24"
