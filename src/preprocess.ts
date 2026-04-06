@@ -25,10 +25,7 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
 
   // Step 1-2: Blur in color space (smooths dither pattern) → greyscale
   // Separate from resize to prevent pipeline reordering
-  const smoothed = await sharp(absPath)
-    .blur(1.5)
-    .greyscale()
-    .toBuffer();
+  const smoothed = await sharp(absPath).blur(1.5).greyscale().toBuffer();
 
   // Step 3: Upscale 4× with Lanczos
   const upscaled = await sharp(smoothed)
@@ -49,10 +46,10 @@ export async function preprocessCaptcha(imagePath: string): Promise<string> {
   // Math.floor matches Python's int() truncation
   const scaledW = origW * 4;
   const scaledH = origH * 4;
-  const cropLeft = Math.floor(scaledW * 0.10);
+  const cropLeft = Math.floor(scaledW * 0.1);
   const cropTop = Math.floor(scaledH * 0.02);
-  const cropRight = Math.floor(scaledW * 0.90);
-  const cropBottom = Math.floor(scaledH * 0.60);
+  const cropRight = Math.floor(scaledW * 0.9);
+  const cropBottom = Math.floor(scaledH * 0.6);
   const cropW = cropRight - cropLeft;
   const cropH = cropBottom - cropTop;
 
