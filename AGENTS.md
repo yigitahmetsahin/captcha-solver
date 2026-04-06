@@ -48,7 +48,7 @@ npm run benchmark
 src/
 ├── index.ts          # Public exports
 ├── solver.ts         # Captcha solving with OpenAI vision + majority voting
-└── preprocess.ts     # Image preprocessing via Python/PIL subprocess
+└── preprocess.ts     # Image preprocessing via sharp (libvips)
 run.ts                # CLI runner (solve + benchmark modes)
 ```
 
@@ -169,4 +169,4 @@ Documentation, tests, and examples should be updated **in the same PR** as the c
 - The `dist/` folder is gitignored but included in npm package
 - npm publishing uses GitHub OIDC trusted publishing (no tokens needed)
 - **ALWAYS run `npm install` after adding/updating dependencies** to update `package-lock.json`
-- This project requires Python 3 with PIL/Pillow for image preprocessing
+- Image preprocessing uses sharp (libvips) — no Python dependency needed
