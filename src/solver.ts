@@ -200,20 +200,15 @@ export class Solver {
     const model = await this.getModel();
     const imageBuffer = await preprocessCaptchaToBuffer(input);
 
-    // Run attempts — retry refusals/failures to guarantee numAttempts valid results
-    const attempts: string[] = [];
-    const maxTotalCalls = numAttempts + 4;
-    let callCount = 0;
-
-    while (attempts.length < numAttempts && callCount < maxTotalCalls) {
-      callCount++;
-      const result = await this.singleAttempt(model, imageBuffer, maxRetries);
-      if (result) {
-        attempts.push(result);
-        if (verbose) console.log(`  Attempt ${attempts.length}: ${result}`);
-      } else {
-        if (verbose) console.log(`  Call ${callCount}: (refused/failed, retrying...)`);
-      }
+    // Fire all attempts in parallel for speed
+    const results = await Promise.all(
+      Array.from({ length: numAttempts }, () =>
+        this.singleAttempt(model, imageBuffer, maxRetries),
+      ),
+    );
+    const attempts = results.filter((r): r is string => r !== null);
+    if (verbose) {
+      attempts.forEach((r, i) => console.log(`  Attempt ${i + 1}: ${r}`));
     }
 
     if (attempts.length === 0) {
