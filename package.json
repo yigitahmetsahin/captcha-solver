@@ -1,6 +1,6 @@
 {
   "name": "@yigitahmetsahin/captcha-solver",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI-powered captcha solver using image preprocessing and multi-provider vision models (Vercel AI SDK)",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
