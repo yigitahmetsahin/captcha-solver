@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-An AI-powered captcha solver library using image preprocessing and OpenAI vision models. Supports majority voting across multiple attempts for high accuracy. Published to npm as `@yigitahmetsahin/captcha-solver`.
+An AI-powered captcha solver library using image preprocessing and vision models (OpenAI, Anthropic, Google via Vercel AI SDK). Supports parallel majority voting across concurrent attempts for high accuracy. Published to npm as `@yigitahmetsahin/captcha-solver`.
 
 ## Setup Commands
 
@@ -47,7 +47,7 @@ npm run benchmark
 ```
 src/
 ├── index.ts          # Public exports
-├── solver.ts         # Captcha solving with OpenAI vision + majority voting
+├── solver.ts         # Captcha solving with AI vision + parallel majority voting
 └── preprocess.ts     # Image preprocessing via sharp (libvips)
 run.ts                # CLI runner (solve + benchmark modes)
 ```
