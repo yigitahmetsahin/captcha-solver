@@ -2,6 +2,7 @@
 
 AI-powered captcha solver using image preprocessing and vision models with parallel majority voting. Supports OpenAI, Anthropic, and Google providers via the Vercel AI SDK.
 
+[![npm](https://img.shields.io/npm/v/@yigitahmetsahin/captcha-solver)](https://www.npmjs.com/package/@yigitahmetsahin/captcha-solver)
 [![CI](https://github.com/yigitahmetsahin/captcha-solver/actions/workflows/ci.yml/badge.svg)](https://github.com/yigitahmetsahin/captcha-solver/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
