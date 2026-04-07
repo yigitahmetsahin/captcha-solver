@@ -58,7 +58,8 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.50",
+    "@ai-sdk/anthropic": "^3.0.67",
+    "@ai-sdk/openai": "^3.0.51",
     "@eslint/js": "^9.39.2",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.0.18",
