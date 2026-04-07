@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(export PATH=\"$HOME/.nvm/versions/node/v24.11.0/bin:$PATH\")",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git -C /Users/yigitahmetsahin/Desktop/captcha-solver status)",
+      "Bash(git -C /Users/yigitahmetsahin/Desktop/captcha-solver diff --stat)",
+      "Bash(git -C /Users/yigitahmetsahin/Desktop/captcha-solver log --oneline -3)",
+      "Bash(git -C /Users/yigitahmetsahin/Desktop/captcha-solver checkout -b feat/adaptive-preprocessing)",
+      "Bash(git -C /Users/yigitahmetsahin/Desktop/captcha-solver add run.ts src/index.ts src/preprocess.test.ts src/preprocess.ts src/solver.ts src/voting.test.ts)"
+    ]
+  }
+}
