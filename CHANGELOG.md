@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v3.0.0...v3.1.0) (2026-04-07)
+
+
+### Features
+
+* dithered captcha solver with multi-model ensemble and disambiguation ([9fcd053](https://github.com/yigitahmetsahin/captcha-solver/commit/9fcd0530630f068c239f453e5615a0e806e9f33a))
+
+
+### Bug Fixes
+
+* add @emnapi/runtime@1.9.2 and @emnapi/core@1.9.2 for CI ([35b8f35](https://github.com/yigitahmetsahin/captcha-solver/commit/35b8f3566bfe221c8b031968c28cff8dc86aa52d))
+* regenerate lockfile and install peer deps for CI ([48f899e](https://github.com/yigitahmetsahin/captcha-solver/commit/48f899eced363376dac9e9d051f4c6914637a644))
+
 ## [3.0.0](https://github.com/yigitahmetsahin/captcha-solver/compare/v2.0.1...v3.0.0) (2026-04-06)
 
 
